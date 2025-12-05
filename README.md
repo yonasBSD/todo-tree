@@ -11,7 +11,6 @@ A command-line tool to find and display TODO-style comments in your codebase, si
 - ⚙️ **Configuration file support** - `.todorc` in JSON or YAML format
 - 🎨 **Colored output** - Priority-based coloring for different tag types
 - 🔗 **Clickable links** - Terminal hyperlinks to file locations (where supported)
-- 🚀 **Fast** - Parallel file scanning using the `ignore` crate
 
 ## Installation
 
