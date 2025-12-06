@@ -390,6 +390,7 @@ use anyhow::Context;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::fs;
     use tempfile::TempDir;
 
@@ -567,6 +568,7 @@ fn main() {}
     }
 
     #[test]
+    #[serial]
     fn test_save_config_creates_new_file() {
         let temp_dir = TempDir::new().unwrap();
         let original_dir = std::env::current_dir().unwrap();
@@ -585,6 +587,7 @@ fn main() {}
     }
 
     #[test]
+    #[serial]
     fn test_save_config_updates_existing() {
         let temp_dir = TempDir::new().unwrap();
         let original_dir = std::env::current_dir().unwrap();
@@ -636,5 +639,821 @@ fn main() {}
         assert!(temp_dir.path().join("main.rs").exists());
         assert!(temp_dir.path().join("lib.rs").exists());
         assert!(temp_dir.path().join("src/utils.rs").exists());
+    }
+
+    #[test]
+    fn test_cmd_scan_basic() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            flat: false,
+            depth: 0,
+            follow_links: false,
+            hidden: false,
+            case_sensitive: false,
+            sort: cli::SortOrder::File,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_scan_with_json_output() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: Some(vec!["TODO".to_string()]),
+            include: Some(vec!["*.rs".to_string()]),
+            exclude: None,
+            json: true,
+            flat: false,
+            depth: 0,
+            follow_links: false,
+            hidden: false,
+            case_sensitive: true,
+            sort: cli::SortOrder::Priority,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_scan_with_flat_output() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: Some(vec!["src/**".to_string()]),
+            json: false,
+            flat: true,
+            depth: 1,
+            follow_links: true,
+            hidden: true,
+            case_sensitive: false,
+            sort: cli::SortOrder::Line,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_list_basic() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ListArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            filter: None,
+            case_sensitive: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_list(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_list_with_filter() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ListArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: Some(vec!["TODO".to_string(), "FIXME".to_string()]),
+            include: Some(vec!["*.rs".to_string()]),
+            exclude: Some(vec!["src/**".to_string()]),
+            json: false,
+            filter: Some("TODO".to_string()),
+            case_sensitive: true,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_list(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_list_with_json_output() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ListArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: true,
+            filter: None,
+            case_sensitive: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_list(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_display() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create a config file
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO", "FIXME"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: None,
+            remove: None,
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_display_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO", "FIXME"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: true,
+            add: None,
+            remove: None,
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_display_with_color() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO", "FIXME", "BUG"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: None,
+            remove: None,
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_add_new() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: Some("NEWTAG".to_string()),
+            remove: None,
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_add_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: Some("todo".to_string()), // case-insensitive match
+            remove: None,
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_remove_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO", "FIXME"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: None,
+            remove: Some("TODO".to_string()),
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_remove_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: None,
+            remove: Some("NONEXISTENT".to_string()),
+            reset: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_tags_reset() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["CUSTOM"]}"#,
+        )
+        .unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::TagsArgs {
+            json: false,
+            add: None,
+            remove: None,
+            reset: true,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_tags(args, &global);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_init_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::InitArgs {
+            format: cli::ConfigFormat::Json,
+            force: false,
+        };
+
+        let result = cmd_init(args);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+        assert!(temp_dir.path().join(".todorc.json").exists());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_init_yaml() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::InitArgs {
+            format: cli::ConfigFormat::Yaml,
+            force: false,
+        };
+
+        let result = cmd_init(args);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+        assert!(temp_dir.path().join(".todorc.yaml").exists());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_init_already_exists() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create existing config
+        fs::write(temp_dir.path().join(".todorc.json"), "{}").unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::InitArgs {
+            format: cli::ConfigFormat::Json,
+            force: false,
+        };
+
+        let result = cmd_init(args);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_cmd_init_force_overwrite() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create existing config
+        fs::write(temp_dir.path().join(".todorc.json"), r#"{"tags": ["OLD"]}"#).unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let args = cli::InitArgs {
+            format: cli::ConfigFormat::Json,
+            force: true,
+        };
+
+        let result = cmd_init(args);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_basic() {
+        let temp_dir = create_test_project();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_with_json() {
+        let temp_dir = create_test_project();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: Some(vec!["TODO".to_string(), "FIXME".to_string()]),
+            json: true,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_with_color() {
+        let temp_dir = create_test_project();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_empty_project() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a file with no TODOs
+        fs::write(temp_dir.path().join("empty.rs"), "fn main() {}").unwrap();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_empty_project_json() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a file with no TODOs - tests the 0.0 edge case for items_per_file
+        fs::write(temp_dir.path().join("empty.rs"), "fn main() {}").unwrap();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            json: true,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_zero_percentage() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a completely empty directory (no files at all)
+        // This tests the 0.0 percentage edge case
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: Some(vec!["NONEXISTENT".to_string()]),
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_zero_percentage_with_color() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a completely empty directory (no files at all)
+        // This tests the 0.0 percentage edge case with color output
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: Some(vec!["NONEXISTENT".to_string()]),
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_stats_with_config() {
+        let temp_dir = create_test_project();
+
+        // Create config file
+        fs::write(
+            temp_dir.path().join(".todorc.json"),
+            r#"{"tags": ["TODO", "FIXME", "NOTE"]}"#,
+        )
+        .unwrap();
+
+        let args = cli::StatsArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            json: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_stats(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_scan_with_config_file() {
+        let temp_dir = create_test_project();
+
+        // Create config file
+        let config_path = temp_dir.path().join("custom-config.json");
+        fs::write(&config_path, r#"{"tags": ["TODO", "CUSTOM"]}"#).unwrap();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            flat: false,
+            depth: 0,
+            follow_links: false,
+            hidden: false,
+            case_sensitive: false,
+            sort: cli::SortOrder::File,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: Some(config_path),
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_list_with_config_file() {
+        let temp_dir = create_test_project();
+
+        // Create config file
+        let config_path = temp_dir.path().join("custom-config.json");
+        fs::write(&config_path, r#"{"tags": ["TODO"]}"#).unwrap();
+
+        let args = cli::ListArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            filter: None,
+            case_sensitive: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: Some(config_path),
+        };
+
+        let result = cmd_list(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_save_config_yaml_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create existing YAML config file
+        fs::write(temp_dir.path().join(".todorc.yaml"), "tags:\n  - OLD").unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let mut config = Config::new();
+        config.tags = vec!["UPDATED".to_string()];
+        let result = save_config(&config);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_save_config_yml_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create existing YML config file
+        fs::write(temp_dir.path().join(".todorc.yml"), "tags:\n  - OLD").unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let mut config = Config::new();
+        config.tags = vec!["UPDATED".to_string()];
+        let result = save_config(&config);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_save_config_todorc_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+
+        // Create existing .todorc file (without extension)
+        fs::write(temp_dir.path().join(".todorc"), r#"{"tags": ["OLD"]}"#).unwrap();
+
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        let mut config = Config::new();
+        config.tags = vec!["UPDATED".to_string()];
+        let result = save_config(&config);
+
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
     }
 }
