@@ -87,7 +87,7 @@ fn cmd_scan(args: ScanArgs, global: &cli::GlobalOptions) -> Result<()> {
         clickable_links: !global.no_color,
         base_path: Some(path),
         show_summary: !args.json,
-        group_by_tag: false,
+        group_by_tag: args.group_by_tag,
     };
 
     let printer = Printer::new(print_options);
@@ -657,6 +657,7 @@ fn main() {}
             hidden: false,
             case_sensitive: false,
             sort: cli::SortOrder::File,
+            group_by_tag: false,
         };
 
         let global = cli::GlobalOptions {
@@ -685,6 +686,7 @@ fn main() {}
             hidden: false,
             case_sensitive: true,
             sort: cli::SortOrder::Priority,
+            group_by_tag: false,
         };
 
         let global = cli::GlobalOptions {
@@ -713,6 +715,65 @@ fn main() {}
             hidden: true,
             case_sensitive: false,
             sort: cli::SortOrder::Line,
+            group_by_tag: false,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: false,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_scan_group_by_tag() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            flat: false,
+            depth: 0,
+            follow_links: false,
+            hidden: false,
+            case_sensitive: false,
+            sort: cli::SortOrder::File,
+            group_by_tag: true,
+        };
+
+        let global = cli::GlobalOptions {
+            no_color: true,
+            verbose: false,
+            config: None,
+        };
+
+        let result = cmd_scan(args, &global);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_scan_group_by_tag_with_color() {
+        let temp_dir = create_test_project();
+
+        let args = cli::ScanArgs {
+            path: Some(temp_dir.path().to_path_buf()),
+            tags: None,
+            include: None,
+            exclude: None,
+            json: false,
+            flat: false,
+            depth: 0,
+            follow_links: false,
+            hidden: false,
+            case_sensitive: false,
+            sort: cli::SortOrder::File,
+            group_by_tag: true,
         };
 
         let global = cli::GlobalOptions {
@@ -1357,6 +1418,7 @@ fn main() {}
             hidden: false,
             case_sensitive: false,
             sort: cli::SortOrder::File,
+            group_by_tag: false,
         };
 
         let global = cli::GlobalOptions {

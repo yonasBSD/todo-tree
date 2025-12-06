@@ -108,6 +108,10 @@ pub struct ScanArgs {
     /// Sort results by: file, tag, line
     #[arg(long, default_value = "file")]
     pub sort: SortOrder,
+
+    /// Group results by tag instead of by file
+    #[arg(long)]
+    pub group_by_tag: bool,
 }
 
 impl Default for ScanArgs {
@@ -124,6 +128,7 @@ impl Default for ScanArgs {
             hidden: false,
             case_sensitive: false,
             sort: SortOrder::File,
+            group_by_tag: false,
         }
     }
 }
