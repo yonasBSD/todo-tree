@@ -56,12 +56,161 @@ mod tests {
     use crate::slash_commands::{build_stats_output, build_tag_completions, build_todos_output};
     use crate::types::{DEFAULT_TAGS, FileResult, Priority, ScanResult, Summary, TodoItem};
     use std::collections::HashMap;
+    use zed_extension_api::Extension;
 
     #[test]
     fn test_extension_struct_is_send_sync() {
         // Verify TodoTreeExtension can be used across threads
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<TodoTreeExtension>();
+    }
+
+    #[test]
+    fn test_extension_new_creates_instance() {
+        // Test that TodoTreeExtension::new() works correctly
+        let _extension = TodoTreeExtension::new();
+        // If we get here without panic, the test passes
+    }
+
+    #[test]
+    fn test_extension_run_slash_command_todos_no_worktree() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos".to_string(),
+            description: "List TODOs".to_string(),
+            tooltip_text: "List all TODOs".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.run_slash_command(command, vec![], None);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("worktree"));
+    }
+
+    #[test]
+    fn test_extension_run_slash_command_todos_stats_no_worktree() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos-stats".to_string(),
+            description: "Show stats".to_string(),
+            tooltip_text: "Show TODO stats".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.run_slash_command(command, vec![], None);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("worktree"));
+    }
+
+    #[test]
+    fn test_extension_run_slash_command_unknown_command() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "unknown-command".to_string(),
+            description: "Unknown".to_string(),
+            tooltip_text: "Unknown".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.run_slash_command(command, vec![], None);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown command"));
+    }
+
+    #[test]
+    fn test_extension_complete_slash_command_argument_todos() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos".to_string(),
+            description: "List TODOs".to_string(),
+            tooltip_text: "List all TODOs".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.complete_slash_command_argument(command, vec![]);
+
+        assert!(result.is_ok());
+        let completions = result.unwrap();
+        assert!(!completions.is_empty());
+        // Should have completions for all default tags
+        assert_eq!(completions.len(), DEFAULT_TAGS.len());
+    }
+
+    #[test]
+    fn test_extension_complete_slash_command_argument_todos_stats() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos-stats".to_string(),
+            description: "Show stats".to_string(),
+            tooltip_text: "Show TODO stats".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.complete_slash_command_argument(command, vec![]);
+
+        assert!(result.is_ok());
+        let completions = result.unwrap();
+        // todos-stats has no argument completions
+        assert!(completions.is_empty());
+    }
+
+    #[test]
+    fn test_extension_complete_slash_command_argument_unknown() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "unknown".to_string(),
+            description: "Unknown".to_string(),
+            tooltip_text: "Unknown".to_string(),
+            requires_argument: false,
+        };
+
+        let result = extension.complete_slash_command_argument(command, vec![]);
+
+        assert!(result.is_ok());
+        let completions = result.unwrap();
+        // Unknown commands return empty completions
+        assert!(completions.is_empty());
+    }
+
+    #[test]
+    fn test_extension_run_slash_command_with_args() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos".to_string(),
+            description: "List TODOs".to_string(),
+            tooltip_text: "List all TODOs".to_string(),
+            requires_argument: false,
+        };
+
+        // Even with args, should fail without worktree
+        let result = extension.run_slash_command(
+            command,
+            vec!["TODO".to_string(), "FIXME".to_string()],
+            None,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extension_complete_slash_command_argument_with_existing_args() {
+        let extension = TodoTreeExtension::new();
+        let command = SlashCommand {
+            name: "todos".to_string(),
+            description: "List TODOs".to_string(),
+            tooltip_text: "List all TODOs".to_string(),
+            requires_argument: false,
+        };
+
+        // Should still return all completions even with existing args
+        let result = extension.complete_slash_command_argument(command, vec!["TODO".to_string()]);
+
+        assert!(result.is_ok());
+        let completions = result.unwrap();
+        assert_eq!(completions.len(), DEFAULT_TAGS.len());
     }
 
     #[test]
