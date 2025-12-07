@@ -219,26 +219,26 @@ mod tests {
         let mut tag_counts = HashMap::new();
         tag_counts.insert("TODO".to_string(), 1);
 
-        let result = ScanResult {
-            files: vec![FileResult {
+        let result = ScanResult::from_json(
+            vec![FileResult {
                 path: "test.rs".to_string(),
                 items: vec![TodoItem {
                     tag: "TODO".to_string(),
                     message: "Test integration".to_string(),
                     line: 1,
                     column: 1,
-                    priority: "Medium".to_string(),
+                    line_content: None,
+                    priority: Priority::Medium,
                     author: None,
                 }],
-            }]
-            .into(),
-            summary: Summary {
+            }],
+            Summary {
                 total_count: 1,
                 files_with_todos: 1,
                 files_scanned: 1,
                 tag_counts,
             },
-        };
+        );
 
         let formatted = OutputFormatter::format_todos(&result);
         assert!(formatted.contains("test.rs"));
@@ -297,8 +297,8 @@ mod tests {
         let mut tag_counts = HashMap::new();
         tag_counts.insert("BUG".to_string(), 3);
 
-        let result = ScanResult {
-            files: vec![FileResult {
+        let result = ScanResult::from_json(
+            vec![FileResult {
                 path: "buggy.rs".to_string(),
                 items: vec![
                     TodoItem {
@@ -306,7 +306,8 @@ mod tests {
                         message: "Critical bug".to_string(),
                         line: 1,
                         column: 1,
-                        priority: "Critical".to_string(),
+                        line_content: None,
+                        priority: Priority::Critical,
                         author: Some("developer".to_string()),
                     },
                     TodoItem {
@@ -314,7 +315,8 @@ mod tests {
                         message: "Another bug".to_string(),
                         line: 10,
                         column: 1,
-                        priority: "Critical".to_string(),
+                        line_content: None,
+                        priority: Priority::Critical,
                         author: None,
                     },
                     TodoItem {
@@ -322,19 +324,19 @@ mod tests {
                         message: "Third bug".to_string(),
                         line: 20,
                         column: 1,
-                        priority: "Critical".to_string(),
+                        line_content: None,
+                        priority: Priority::Critical,
                         author: None,
                     },
                 ],
-            }]
-            .into(),
-            summary: Summary {
+            }],
+            Summary {
                 total_count: 3,
                 files_with_todos: 1,
                 files_scanned: 10,
                 tag_counts,
             },
-        };
+        );
 
         let todos_output = build_todos_output(&result, &["BUG".to_string()]);
         assert!(todos_output.text.contains("Critical bug"));
@@ -393,7 +395,8 @@ mod tests {
                     message: format!("Item {} in file {}", j, i),
                     line: j + 1,
                     column: 1,
-                    priority: "Medium".to_string(),
+                    line_content: None,
+                    priority: Priority::Medium,
                     author: None,
                 });
             }
@@ -405,15 +408,15 @@ mod tests {
 
         tag_counts.insert("TODO".to_string(), 50);
 
-        let result = ScanResult {
-            files: Some(files),
-            summary: Summary {
+        let result = ScanResult::from_json(
+            files,
+            Summary {
                 total_count: 50,
                 files_with_todos: 10,
                 files_scanned: 100,
                 tag_counts,
             },
-        };
+        );
 
         let output = build_todos_output(&result, &[]);
         assert!(output.text.contains("50 items"));
@@ -481,30 +484,29 @@ mod tests {
 
     #[test]
     fn test_scan_result_is_empty_consistency() {
-        let empty = ScanResult {
-            files: vec![].into(),
-            summary: Summary {
+        let empty = ScanResult::from_json(
+            vec![],
+            Summary {
                 total_count: 0,
                 files_with_todos: 0,
                 files_scanned: 0,
                 tag_counts: HashMap::new(),
             },
-        };
+        );
         assert!(empty.is_empty());
 
-        let non_empty = ScanResult {
-            files: vec![FileResult {
+        let non_empty = ScanResult::from_json(
+            vec![FileResult {
                 path: "test.rs".to_string(),
                 items: vec![],
-            }]
-            .into(),
-            summary: Summary {
+            }],
+            Summary {
                 total_count: 0,
                 files_with_todos: 1,
                 files_scanned: 1,
                 tag_counts: HashMap::new(),
             },
-        };
+        );
         assert!(!non_empty.is_empty());
     }
 
@@ -512,38 +514,38 @@ mod tests {
     fn test_output_section_range_always_valid() {
         let test_cases = vec![
             (
-                ScanResult {
-                    files: vec![].into(),
-                    summary: Summary {
+                ScanResult::from_json(
+                    vec![],
+                    Summary {
                         total_count: 0,
                         files_with_todos: 0,
                         files_scanned: 0,
                         tag_counts: HashMap::new(),
                     },
-                },
+                ),
                 vec![],
             ),
             (
-                ScanResult {
-                    files: vec![FileResult {
+                ScanResult::from_json(
+                    vec![FileResult {
                         path: "a".to_string(),
                         items: vec![TodoItem {
                             tag: "X".to_string(),
                             message: "Y".to_string(),
                             line: 1,
                             column: 1,
-                            priority: "Low".to_string(),
+                            line_content: None,
+                            priority: Priority::Low,
                             author: None,
                         }],
-                    }]
-                    .into(),
-                    summary: Summary {
+                    }],
+                    Summary {
                         total_count: 1,
                         files_with_todos: 1,
                         files_scanned: 1,
                         tag_counts: HashMap::new(),
                     },
-                },
+                ),
                 vec![],
             ),
         ];

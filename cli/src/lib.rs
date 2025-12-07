@@ -441,7 +441,7 @@ fn temp_fix() {}
     fn test_scan_finds_todos() {
         let temp_dir = create_test_project();
 
-        let tags: Vec<String> = config::DEFAULT_TAGS.iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = config::default_tags();
         let parser = TodoParser::new(&tags, false);
         let scanner = Scanner::new(parser, ScanOptions::default());
 
@@ -485,7 +485,7 @@ fn temp_fix() {}
         )
         .unwrap();
 
-        let tags: Vec<String> = config::DEFAULT_TAGS.iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = config::default_tags();
         let parser = TodoParser::new(&tags, false);
         let scanner = Scanner::new(parser, ScanOptions::default());
 
@@ -506,7 +506,7 @@ fn temp_fix() {}
 
         fs::write(temp_dir.path().join("test.rs"), "// TODO: Test").unwrap();
 
-        let tags: Vec<String> = config::DEFAULT_TAGS.iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = config::default_tags();
         let parser = TodoParser::new(&tags, false);
         let scanner = Scanner::new(parser, ScanOptions::default());
 
@@ -532,7 +532,7 @@ fn main() {}
         )
         .unwrap();
 
-        let tags: Vec<String> = config::DEFAULT_TAGS.iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = config::default_tags();
         let parser = TodoParser::new(&tags, false);
         let scanner = Scanner::new(parser, ScanOptions::default());
 

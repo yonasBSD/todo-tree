@@ -200,8 +200,8 @@ mod tests {
         tag_counts.insert("TODO".to_string(), 2);
         tag_counts.insert("FIXME".to_string(), 1);
 
-        ScanResult {
-            files: vec![
+        ScanResult::from_json(
+            vec![
                 FileResult {
                     path: "src/main.rs".to_string(),
                     items: vec![
@@ -210,7 +210,8 @@ mod tests {
                             message: "Implement this".to_string(),
                             line: 10,
                             column: 5,
-                            priority: "Medium".to_string(),
+                            line_content: None,
+                            priority: Priority::Medium,
                             author: None,
                         },
                         TodoItem {
@@ -218,7 +219,8 @@ mod tests {
                             message: "Fix this bug".to_string(),
                             line: 25,
                             column: 3,
-                            priority: "Critical".to_string(),
+                            line_content: None,
+                            priority: Priority::Critical,
                             author: Some("alice".to_string()),
                         },
                     ],
@@ -230,30 +232,31 @@ mod tests {
                         message: "Add tests".to_string(),
                         line: 5,
                         column: 1,
-                        priority: "Medium".to_string(),
+                        line_content: None,
+                        priority: Priority::Medium,
                         author: None,
                     }],
                 },
             ],
-            summary: Summary {
+            Summary {
                 total_count: 3,
                 files_with_todos: 2,
                 files_scanned: 10,
                 tag_counts,
             },
-        }
+        )
     }
 
     fn create_empty_scan_result() -> ScanResult {
-        ScanResult {
-            files: vec![],
-            summary: Summary {
+        ScanResult::from_json(
+            vec![],
+            Summary {
                 total_count: 0,
                 files_with_todos: 0,
                 files_scanned: 5,
                 tag_counts: HashMap::new(),
             },
-        }
+        )
     }
 
     #[test]
@@ -376,7 +379,8 @@ mod tests {
                 message: "Test".to_string(),
                 line: 1,
                 column: 1,
-                priority: "Medium".to_string(),
+                line_content: None,
+                priority: Priority::Medium,
                 author: None,
             }],
         };

@@ -285,7 +285,7 @@ mod tests {
         let result = parse_output(json);
         assert!(result.is_ok());
         let scan_result = result.unwrap();
-        assert!(scan_result.files.is_empty());
+        assert!(scan_result.is_empty());
         assert_eq!(scan_result.summary.total_count, 0);
     }
 
@@ -315,12 +315,13 @@ mod tests {
         }"#;
 
         let result = parse_output(json).unwrap();
-        assert_eq!(result.files.len(), 1);
-        assert_eq!(result.files[0].path, "test.rs");
-        assert_eq!(result.files[0].items.len(), 1);
-        assert_eq!(result.files[0].items[0].tag, "TODO");
-        assert_eq!(result.files[0].items[0].message, "Test message");
-        assert_eq!(result.files[0].items[0].line, 10);
+        let files = result.get_files();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "test.rs");
+        assert_eq!(files[0].items.len(), 1);
+        assert_eq!(files[0].items[0].tag, "TODO");
+        assert_eq!(files[0].items[0].message, "Test message");
+        assert_eq!(files[0].items[0].line, 10);
     }
 
     #[test]
@@ -349,7 +350,8 @@ mod tests {
         }"#;
 
         let result = parse_output(json).unwrap();
-        assert_eq!(result.files.len(), 2);
+        let files = result.get_files();
+        assert_eq!(files.len(), 2);
         assert_eq!(result.summary.total_count, 2);
     }
 
@@ -380,7 +382,8 @@ mod tests {
         }"#;
 
         let result = parse_output(json).unwrap();
-        assert_eq!(result.files[0].items[0].author, Some("alice".to_string()));
+        let files = result.get_files();
+        assert_eq!(files[0].items[0].author, Some("alice".to_string()));
     }
 
     #[test]
@@ -400,7 +403,10 @@ mod tests {
     fn test_parse_output_missing_files_field() {
         let json = r#"{"summary": {"total_count": 0, "files_with_todos": 0, "files_scanned": 0, "tag_counts": {}}}"#;
         let result = parse_output(json);
-        assert!(matches!(result, Err(CliError::ParseFailed(_))));
+        // Files field is optional, so this should succeed with None
+        assert!(result.is_ok());
+        let scan_result = result.unwrap();
+        assert!(scan_result.is_empty());
     }
 
     #[test]
@@ -493,7 +499,8 @@ mod tests {
         }"#;
 
         let result = process_command_output(Some(0), json.as_bytes(), b"").unwrap();
-        assert_eq!(result.files.len(), 1);
+        let files = result.get_files();
+        assert_eq!(files.len(), 1);
         assert_eq!(result.summary.total_count, 1);
     }
 

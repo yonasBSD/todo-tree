@@ -159,7 +159,7 @@ impl Scanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use std::{fs, path::PathBuf};
     use tempfile::TempDir;
 
     fn create_test_file(dir: &Path, name: &str, content: &str) -> PathBuf {

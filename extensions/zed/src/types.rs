@@ -3,6 +3,8 @@ pub use todo_tree_core::{FileResult, Priority, ScanResult};
 
 #[cfg(test)]
 mod tests {
+    use todo_tree_core::{Summary, TodoItem};
+
     use super::*;
     use std::collections::HashMap;
 
