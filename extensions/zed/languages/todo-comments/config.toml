@@ -1,0 +1,5 @@
+name = "Todo Comments"
+grammar = "comment"
+path_suffixes = []
+line_comments = ["// ", "# ", "-- "]
+block_comment = ["/* ", " */"]
