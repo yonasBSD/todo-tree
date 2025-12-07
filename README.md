@@ -27,13 +27,13 @@ cargo install todo-tree
 Try before you install!
 ```bash
 # NOTE: Runs the default todo-tree command
-nix run github.com/alexandretrotel/todo-tree
+nix run github:alexandretrotel/todo-tree
 # Create a shell with the command available 
 # (using nix-output-monitor)
-nom shell github.com/alexandretrotel/todo-tree
+nom shell github:alexandretrotel/todo-tree
 tt tags
 # Or, just normal nix
-nix shell github.com/alexandretrotel/todo-tree
+nix shell github:alexandretrotel/todo-tree
 tt scan ~/projects/todo-tree --tags FIXME
 ```
 Install for your system
@@ -43,7 +43,7 @@ Install for your system
   description = "My custom multi-machine system flake.";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    todo-tree = "github.com/alexandretrotel/todo-tree";
+    todo-tree.url = "github:alexandretrotel/todo-tree";
   }
   #...
 }
