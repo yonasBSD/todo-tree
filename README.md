@@ -13,6 +13,7 @@ A command-line tool to find and display TODO-style comments in your codebase, si
 - ⚙️ **Configuration file support** - `.todorc` in JSON or YAML format
 - 🎨 **Colored output** - Priority-based coloring for different tag types
 - 🔗 **Clickable links** - Terminal hyperlinks to file locations (where supported)
+- 🧩 **Editor extensions** - Integrates with Zed via slash commands
 
 ## Installation
 
@@ -367,6 +368,30 @@ The tool generates clickable hyperlinks (OSC 8) in supported terminals:
 ### Color Support
 
 Colors are automatically enabled when outputting to a terminal. Use `--no-color` or set the `NO_COLOR` environment variable to disable.
+
+## Extensions
+
+### Zed Editor
+
+The Todo Tree Zed extension integrates TODO scanning directly into the Zed Assistant using slash commands.
+
+#### Installation
+
+1. Install the CLI first: `cargo install todo-tree`
+2. In Zed, open Extensions (`Cmd+Shift+X` on macOS)
+3. Search for "Todo Tree" and click Install
+
+#### Usage
+
+Use these slash commands in the Zed Assistant:
+
+| Command | Description |
+|---------|-------------|
+| `/todos` | List all TODO-style comments in the project |
+| `/todos [TAG]` | Filter by specific tag (e.g., `/todos BUG`) |
+| `/todos-stats` | Show statistics about TODO items |
+
+For more details, see the [Zed extension README](extensions/zed/README.md).
 
 ## Development
 
