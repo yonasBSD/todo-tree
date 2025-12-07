@@ -68,7 +68,7 @@ pub fn process_command_output(
     stderr: &[u8],
 ) -> Result<ScanResult, CliError> {
     // Check for successful execution
-    if status.is_none_or(|s| s != 0) {
+    if status != Some(0) {
         let stderr_str = String::from_utf8_lossy(stderr);
         return Err(CliError::ExecutionFailed(stderr_str.to_string()));
     }
@@ -87,7 +87,7 @@ impl CliRunner {
     /// Find the path to the todo-tree CLI binary.
     ///
     /// Searches for either `tt` or `todo-tree` in the system PATH.
-    pub fn find_cli_path(worktree: &Worktree) -> Result<String, CliError> {
+    fn find_cli_path(worktree: &Worktree) -> Result<String, CliError> {
         if let Some(path) = worktree.which("tt") {
             return Ok(path);
         }
