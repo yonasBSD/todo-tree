@@ -393,35 +393,6 @@ Use these slash commands in the Zed Assistant:
 
 For more details, see the [Zed extension README](extensions/zed/README.md).
 
-## Development
-
-### Building
-
-```bash
-cargo build --release
-```
-
-### Running Tests
-
-```bash
-cargo test
-```
-
-### Project Structure
-
-```
-src/
-├── lib.rs       # Library entry point with command implementations
-├── main.rs      # Binary entry point (todo-tree)
-├── bin/
-│   └── tt.rs    # Binary entry point (tt alias)
-├── cli.rs       # Command-line argument parsing (clap)
-├── config.rs    # Configuration file handling
-├── parser.rs    # Regex-based tag detection
-├── printer.rs   # Output formatting (tree, flat, JSON)
-└── scanner.rs   # Directory traversal (ignore crate)
-```
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
