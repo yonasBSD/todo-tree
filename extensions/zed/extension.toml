@@ -15,5 +15,5 @@ description = "Show statistics about TODO-style comments in the project"
 requires_argument = false
 
 [grammars.comment]
-repository = "https://github.com/stsewd/tree-sitter-comment"
-rev = "db922d7809637900089709e07e31b88c42354ec2"
+repository = "https://github.com/thedadams/tree-sitter-comment"
+rev = "93b12e7b219d74fdbbb27e6671ca2f714738b253"
