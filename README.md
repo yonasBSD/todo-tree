@@ -393,6 +393,39 @@ Use these slash commands in the Zed Assistant:
 
 For more details, see the [Zed extension README](extensions/zed/README.md).
 
+#### Required Capabilities
+
+The Todo Tree Zed extension requires certain capabilities that you may need to accept when first using it. Zed extensions operate under a [capability system](https://zed.dev/docs/extensions/capabilities) for security.
+
+When prompted, you may need to grant the following permissions:
+
+| Capability | Purpose |
+|------------|---------|
+| `process:exec` | Execute `todo-tree` or `tt` CLI for slash commands |
+| `download_file` | Download tree-sitter grammar from GitHub |
+
+You can manage these permissions in your Zed settings under `granted_extension_capabilities`. Add the following to your `settings.json`:
+
+```json
+{
+  "granted_extension_capabilities": [
+    {
+      "kind": "process:exec",
+      "command": "tt",
+      "args": ["**"]
+    },
+    {
+      "kind": "process:exec",
+      "command": "todo-tree",
+      "args": ["**"]
+    },
+    { "kind": "download_file", "host": "github.com", "path": ["**"] }
+  ],
+}
+```
+
+If you restrict these capabilities, the extension may not function properly.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
