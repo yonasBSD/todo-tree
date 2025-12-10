@@ -35,8 +35,11 @@
         naersklib = pkgs.callPackage naersk {};
         package = naersklib.buildPackage {
           pname = "todo-tree";
-          version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.version;
+          # Read version from cli/Cargo.toml since root is a workspace manifest
+          version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
           src = self;
+          # Build only the cli package from the workspace
+          cargoBuildOptions = opts: opts ++ [ "--package" "todo-tree" ];
           nativeBuildInputs = with pkgs; [ pkg-config ];
           meta = { mainProgram = "todo-tree"; };
         };
