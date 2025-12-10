@@ -40,7 +40,7 @@ jobs:
         id: sha256
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          BASE_URL="https://github.com/alexandretrotel/todo-tree/releases/download/v${VERSION}"
+          BASE_URL="https://github.com/alexandretrotel/todo-tree/releases/download/todo-tree-v${VERSION}"
 
           # Download and compute SHA256 for each platform
           curl -fsSL "${BASE_URL}/todo-tree-aarch64-apple-darwin.tar.gz" -o arm64-darwin.tar.gz
