@@ -17,7 +17,14 @@ A command-line tool to find and display TODO-style comments in your codebase, si
 
 ## Installation
 
-### Using Cargo (Recommended)
+### Using Homebrew (macOS/Linux)
+
+```bash
+brew tap alexandretrotel/todo-tree
+brew install todo-tree
+```
+
+### Using Cargo
 
 ```bash
 cargo install todo-tree
