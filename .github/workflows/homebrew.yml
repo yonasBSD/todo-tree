@@ -23,10 +23,10 @@ jobs:
           BASE_URL="https://github.com/alexandretrotel/todo-tree/releases/download/v${VERSION}"
 
           # Download and compute SHA256 for each platform
-          curl -sL "${BASE_URL}/todo-tree-aarch64-apple-darwin.tar.gz" -o arm64-darwin.tar.gz
-          curl -sL "${BASE_URL}/todo-tree-x86_64-apple-darwin.tar.gz" -o x86_64-darwin.tar.gz
-          curl -sL "${BASE_URL}/todo-tree-aarch64-unknown-linux-gnu.tar.gz" -o arm64-linux.tar.gz
-          curl -sL "${BASE_URL}/todo-tree-x86_64-unknown-linux-gnu.tar.gz" -o x86_64-linux.tar.gz
+          curl -fsSL "${BASE_URL}/todo-tree-aarch64-apple-darwin.tar.gz" -o arm64-darwin.tar.gz
+          curl -fsSL "${BASE_URL}/todo-tree-x86_64-apple-darwin.tar.gz" -o x86_64-darwin.tar.gz
+          curl -fsSL "${BASE_URL}/todo-tree-aarch64-unknown-linux-gnu.tar.gz" -o arm64-linux.tar.gz
+          curl -fsSL "${BASE_URL}/todo-tree-x86_64-unknown-linux-gnu.tar.gz" -o x86_64-linux.tar.gz
 
           echo "arm64_darwin=$(sha256sum arm64-darwin.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
           echo "x86_64_darwin=$(sha256sum x86_64-darwin.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
