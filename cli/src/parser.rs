@@ -1,62 +1,15 @@
 use colored::Color;
 use regex::{Regex, RegexBuilder};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
+use todo_tree_core::{Priority, TodoItem};
 
-/// Represents a found TODO item in the source code
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TodoItem {
-    /// The tag that was matched (e.g., "TODO", "FIXME")
-    pub tag: String,
-
-    /// The message following the tag
-    pub message: String,
-
-    /// Line number where the tag was found (1-indexed)
-    pub line: usize,
-
-    /// Column number where the tag starts (1-indexed)
-    pub column: usize,
-
-    /// The full line content
-    pub line_content: String,
-
-    /// Optional author/assignee if specified (e.g., TODO(john): ...)
-    pub author: Option<String>,
-
-    /// Priority level inferred from tag type
-    pub priority: Priority,
-}
-
-/// Priority levels for different tag types
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Priority {
-    Low,
-    Medium,
-    High,
-    Critical,
-}
-
-impl Priority {
-    /// Infer priority from tag name
-    pub fn from_tag(tag: &str) -> Self {
-        match tag.to_uppercase().as_str() {
-            "BUG" | "FIXME" | "XXX" => Priority::Critical,
-            "HACK" | "WARN" | "WARNING" => Priority::High,
-            "TODO" | "PERF" => Priority::Medium,
-            "NOTE" | "INFO" | "IDEA" => Priority::Low,
-            _ => Priority::Medium,
-        }
-    }
-
-    /// Get the color associated with this priority level
-    pub fn to_color(self) -> Color {
-        match self {
-            Priority::Critical => Color::Red,
-            Priority::High => Color::Yellow,
-            Priority::Medium => Color::Cyan,
-            Priority::Low => Color::Green,
-        }
+/// Get the color associated with a priority level
+pub fn priority_to_color(priority: Priority) -> Color {
+    match priority {
+        Priority::Critical => Color::Red,
+        Priority::High => Color::Yellow,
+        Priority::Medium => Color::Cyan,
+        Priority::Low => Color::Green,
     }
 }
 
@@ -95,12 +48,12 @@ impl TodoParser {
 
         // Build pattern that matches:
         // - Optional comment prefix (// # /* <!-- -- ; etc.)
-        // - Tag
+        // - Tag (with Unicode-aware word boundary to avoid matching inside words)
         // - Optional author in parentheses
         // - Optional colon
         // - Message
         let pattern = format!(
-            r"(?:^|[^a-zA-Z0-9_])({tags})(?:\(([^)]+)\))?[:\s]+(.*)$",
+            r"(?:^|[^\p{{L}}\p{{N}}_])({tags})(?:\(([^)]+)\))?[:\s]+(.*)$",
             tags = escaped_tags.join("|")
         );
 
@@ -151,7 +104,7 @@ impl TodoParser {
                 message,
                 line: line_number,
                 column,
-                line_content: line.to_string(),
+                line_content: Some(line.to_string()),
                 author,
                 priority,
             });
@@ -312,10 +265,10 @@ fn main() {}
     #[test]
     fn test_priority_to_color() {
         // Test all priority levels have a color
-        assert_eq!(Priority::Critical.to_color(), Color::Red);
-        assert_eq!(Priority::High.to_color(), Color::Yellow);
-        assert_eq!(Priority::Medium.to_color(), Color::Cyan);
-        assert_eq!(Priority::Low.to_color(), Color::Green);
+        assert_eq!(priority_to_color(Priority::Critical), Color::Red);
+        assert_eq!(priority_to_color(Priority::High), Color::Yellow);
+        assert_eq!(priority_to_color(Priority::Medium), Color::Cyan);
+        assert_eq!(priority_to_color(Priority::Low), Color::Green);
     }
 
     #[test]
@@ -335,7 +288,7 @@ fn main() {}
         assert_eq!(Priority::from_tag("Hack"), Priority::High);
         assert_eq!(Priority::from_tag("warn"), Priority::High);
         assert_eq!(Priority::from_tag("WARNING"), Priority::High);
-        assert_eq!(Priority::from_tag("perf"), Priority::Medium);
+        assert_eq!(Priority::from_tag("perf"), Priority::Low);
         assert_eq!(Priority::from_tag("info"), Priority::Low);
         assert_eq!(Priority::from_tag("IDEA"), Priority::Low);
     }
@@ -389,7 +342,7 @@ fn main() {
         assert!(result.is_some());
         let item = result.unwrap();
         assert_eq!(item.tag, "XXX");
-        assert_eq!(item.priority, Priority::Critical);
+        assert_eq!(item.priority, Priority::Low);
     }
 
     #[test]
@@ -399,7 +352,7 @@ fn main() {
             message: "Test".to_string(),
             line: 1,
             column: 1,
-            line_content: "// TODO: Test".to_string(),
+            line_content: Some("// TODO: Test".to_string()),
             author: None,
             priority: Priority::Medium,
         };
@@ -409,7 +362,7 @@ fn main() {
             message: "Test".to_string(),
             line: 1,
             column: 1,
-            line_content: "// TODO: Test".to_string(),
+            line_content: Some("// TODO: Test".to_string()),
             author: None,
             priority: Priority::Medium,
         };
@@ -422,5 +375,148 @@ fn main() {
         assert!(Priority::Critical > Priority::High);
         assert!(Priority::High > Priority::Medium);
         assert!(Priority::Medium > Priority::Low);
+    }
+
+    #[test]
+    fn test_no_match_todo_in_accented_word() {
+        // "método" (Spanish/Portuguese for "method") contains "todo" but should not match
+        let parser = TodoParser::new(&default_tags(), false);
+        let result = parser.parse_line("El método es importante", 1);
+        assert!(result.is_none(), "Should not match 'todo' inside 'método'");
+    }
+
+    #[test]
+    fn test_no_match_todos_spanish_portuguese() {
+        // "todos" means "all" in Spanish/Portuguese and should not match
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result1 = parser.parse_line("Para todos los usuarios", 1);
+        assert!(
+            result1.is_none(),
+            "Should not match 'todos' (Spanish for 'all')"
+        );
+
+        let result2 = parser.parse_line("Obrigado a todos vocês", 1);
+        assert!(
+            result2.is_none(),
+            "Should not match 'todos' (Portuguese for 'all')"
+        );
+    }
+
+    #[test]
+    fn test_no_match_todo_suffix_in_unicode() {
+        // Words ending in -todo with accented prefix should not match
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result = parser.parse_line("O método científico", 1);
+        assert!(
+            result.is_none(),
+            "Should not match '-todo' suffix after accented char"
+        );
+    }
+
+    #[test]
+    fn test_match_real_todo_after_unicode() {
+        // A real TODO after Unicode text should still match
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result = parser.parse_line("café // TODO: add milk", 1);
+        assert!(
+            result.is_some(),
+            "Should match real TODO after Unicode text"
+        );
+        assert_eq!(result.unwrap().message, "add milk");
+    }
+
+    #[test]
+    fn test_match_todo_with_unicode_in_message() {
+        // TODO with Unicode characters in the message should work
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result = parser.parse_line("// TODO: añadir más café", 1);
+        assert!(
+            result.is_some(),
+            "Should match TODO with Unicode in message"
+        );
+        assert_eq!(result.unwrap().message, "añadir más café");
+    }
+
+    #[test]
+    fn test_no_match_cyrillic_boundary() {
+        // Cyrillic characters should also be treated as word characters
+        let parser = TodoParser::new(&default_tags(), false);
+
+        // "методология" contains "todo" pattern but with Cyrillic prefix
+        let result = parser.parse_line("использовать методологию", 1);
+        assert!(
+            result.is_none(),
+            "Should not match TODO inside Cyrillic word"
+        );
+    }
+
+    #[test]
+    fn test_no_match_cjk_adjacent() {
+        // CJK characters adjacent to TODO should prevent matching
+        // (though CJK doesn't typically have this issue, good to test)
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result = parser.parse_line("完成TODO任务", 1);
+        // This actually should NOT match because 成 and 任 are letters
+        assert!(
+            result.is_none(),
+            "Should not match TODO between CJK characters"
+        );
+    }
+
+    #[test]
+    fn test_match_todo_after_cjk_with_space() {
+        // TODO with proper space boundary after CJK should match
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let result = parser.parse_line("中文 TODO: task here", 1);
+        assert!(
+            result.is_some(),
+            "Should match TODO after space following CJK"
+        );
+        assert_eq!(result.unwrap().message, "task here");
+    }
+
+    #[test]
+    fn test_typst_document_false_positive() {
+        // Real-world case from the issue: typst document with "método"
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let content = r#"
+O método científico é fundamental.
+Para todos os estudantes.
+El método de investigación.
+"#;
+        let items = parser.parse_content(content);
+        assert_eq!(
+            items.len(),
+            0,
+            "Should not find any false positive TODOs in typst content"
+        );
+    }
+
+    #[test]
+    fn test_mixed_real_and_false_todos() {
+        // Mix of real TODOs and false positives
+        let parser = TodoParser::new(&default_tags(), false);
+
+        let content = r#"
+// TODO: This is a real todo
+O método científico
+# FIXME: Another real one
+Para todos vocês
+"#;
+        let items = parser.parse_content(content);
+        assert_eq!(
+            items.len(),
+            2,
+            "Should only find real TODOs, not false positives"
+        );
+        assert_eq!(items[0].tag, "TODO");
+        assert_eq!(items[1].tag, "FIXME");
     }
 }

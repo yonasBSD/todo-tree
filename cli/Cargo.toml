@@ -1,0 +1,51 @@
+[package]
+name = "todo-tree"
+version = "0.2.0"
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "A CLI tool to find and display TODO-style comments in your codebase"
+readme = "../README.md"
+keywords = ["todo", "cli", "developer-tools", "productivity"]
+categories = ["command-line-utilities", "development-tools"]
+default-run = "todo-tree"
+
+[lib]
+name = "todo_tree"
+path = "src/lib.rs"
+
+[[bin]]
+name = "todo-tree"
+path = "src/main.rs"
+
+[[bin]]
+name = "tt"
+path = "src/bin/tt.rs"
+
+[dependencies]
+todo-tree-core = { path = "../core", version = "0.2.0" }
+clap = { version = "4.4", features = ["derive", "env"] }
+regex = "1.10"
+ignore = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+colored = "3.0"
+anyhow = "1.0"
+dirs = "6.0"
+glob = "0.3"
+
+[dev-dependencies]
+tempfile = "3.10"
+serial_test = "3.0"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/todo-tree-{ target }.tar.gz"
+pkg-fmt = "tgz"
+bin-dir = "todo-tree-{ target }/{ bin }{ binary-ext }"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/todo-tree-{ target }.zip"
+pkg-fmt = "zip"

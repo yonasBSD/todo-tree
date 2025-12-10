@@ -7,19 +7,76 @@ A command-line tool to find and display TODO-style comments in your codebase, si
 ## Features
 
 - 🔍 **Recursive directory scanning** - Respects `.gitignore` rules automatically
-- 🏷️ **Configurable tags** - TODO, FIXME, BUG, NOTE, HACK, XXX, WARN, PERF (and custom tags)
+- 🏷️ **Configurable tags** - TODO, FIXME, BUG, NOTE, HACK, WARN, PERF, and more (and custom tags)
 - 🌳 **Tree view output** - Beautiful hierarchical display grouped by file
 - 📋 **Multiple output formats** - Tree, flat list, and JSON
 - ⚙️ **Configuration file support** - `.todorc` in JSON or YAML format
 - 🎨 **Colored output** - Priority-based coloring for different tag types
 - 🔗 **Clickable links** - Terminal hyperlinks to file locations (where supported)
+- 🧩 **Editor extensions** - Integrates with Zed via slash commands
+- 🤖 **GitHub Action** - Automatically scan PRs and post TODO summaries as comments
 
 ## Installation
 
-### Using Cargo (Recommended)
+### Using Homebrew (macOS/Linux)
+
+```bash
+brew tap alexandretrotel/todo-tree
+brew install todo-tree
+```
+
+### Using Cargo
 
 ```bash
 cargo install todo-tree
+```
+
+### NixOS (Flakes)
+
+#### Try before you install
+
+```bash
+# runs the default todo-tree command
+nix run github:alexandretrotel/todo-tree
+
+# create a shell with the command available (with nix-output-monitor)
+nom shell github:alexandretrotel/todo-tree
+tt tags
+
+# or, just normal nix
+nix shell github:alexandretrotel/todo-tree
+tt scan ~/projects/todo-tree --tags FIXME
+```
+
+**Note:** If you haven't enabled the experimental Nix command and flakes features, you need to pass `--extra-experimental-features "nix-command flakes"` to the command. See the [Nix command wiki](https://nixos.wiki/wiki/Nix_command) for more details.
+
+#### Install for your system
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    todo-tree.url = "github:alexandretrotel/todo-tree";
+  };
+
+  outputs = { self, nixpkgs, todo-tree, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [ ./configuration.nix ];
+      specialArgs = { inherit todo-tree; };
+    };
+  };
+}
+
+# configuration.nix
+{ pkgs, todo-tree, ... }:
+
+{
+  environment.systemPackages = [
+    todo-tree.packages.${pkgs.stdenv.hostPlatform.system}.todo-tree
+  ];
+}
 ```
 
 ### From Source
@@ -57,92 +114,6 @@ tt tags
 
 # Show statistics
 tt stats
-```
-
-### Command Reference
-
-#### `scan` (default)
-
-Scan directories for TODO-style comments and display in tree format.
-
-```bash
-tt scan [PATH] [OPTIONS]
-
-Options:
-  -t, --tags <TAGS>        Tags to search for (comma-separated)
-  -i, --include <PATTERN>  File patterns to include (glob)
-  -e, --exclude <PATTERN>  File patterns to exclude (glob)
-  -d, --depth <N>          Maximum depth to scan (0 = unlimited)
-      --json               Output in JSON format
-      --flat               Output in flat format (no tree)
-      --group-by-tag       Group results by tag instead of by file
-      --hidden             Include hidden files
-      --follow-links       Follow symbolic links
-      --case-sensitive     Case-sensitive tag matching
-      --sort <ORDER>       Sort by: file, tag, line, priority
-```
-
-#### `list`
-
-List all TODO items in a flat format.
-
-```bash
-tt list [PATH] [OPTIONS]
-
-Options:
-  -t, --tags <TAGS>        Tags to search for
-  -i, --include <PATTERN>  File patterns to include
-  -e, --exclude <PATTERN>  File patterns to exclude
-      --filter <TAG>       Filter by specific tag
-      --json               Output in JSON format
-```
-
-#### `tags`
-
-Show or manage configured tags.
-
-```bash
-tt tags [OPTIONS]
-
-Options:
-      --json               Output in JSON format
-      --add <TAG>          Add a new tag
-      --remove <TAG>       Remove a tag
-      --reset              Reset to default tags
-```
-
-#### `init`
-
-Create a new configuration file.
-
-```bash
-tt init [OPTIONS]
-
-Options:
-      --format <FORMAT>    Config format: json or yaml [default: json]
-  -f, --force              Overwrite existing config file
-```
-
-#### `stats`
-
-Show statistics about TODOs in the codebase.
-
-```bash
-tt stats [PATH] [OPTIONS]
-
-Options:
-  -t, --tags <TAGS>        Tags to search for
-      --json               Output in JSON format
-```
-
-### Global Options
-
-These options apply to all commands:
-
-```bash
-      --no-color           Disable colored output
-  -v, --verbose            Enable verbose output
-      --config <FILE>      Path to custom config file
 ```
 
 ## Configuration
@@ -194,129 +165,6 @@ no_color: false
 4. Parent directories (recursive)
 5. `~/.config/todo-tree/config.json` (global config)
 
-## Examples
-
-### Example 1: Basic Scan
-
-```bash
-$ tt scan ./src
-
-├── src/main.rs (2)
-│   ├── [L10] TODO: Implement error handling
-│   └── [L25] FIXME: This needs refactoring
-├── src/lib.rs (3)
-│   ├── [L5] NOTE: Public API
-│   ├── [L42] TODO(alice): Add documentation
-│   └── [L78] BUG: Memory leak in this function
-└── src/utils.rs (1)
-    └── [L15] HACK: Temporary workaround
-
-Found 6 TODO items in 3 files (15 files scanned)
-  TODO: 2, FIXME: 1, NOTE: 1, BUG: 1, HACK: 1
-```
-
-### Example 2: Group by Tag
-
-```bash
-$ tt scan --group-by-tag ./src
-
-├── BUG (1)
-│   └── src/lib.rs:78 - Memory leak in this function
-├── FIXME (1)
-│   └── src/main.rs:25 - This needs refactoring
-├── HACK (1)
-│   └── src/utils.rs:15 - Temporary workaround
-├── NOTE (1)
-│   └── src/lib.rs:5 - Public API
-└── TODO (2)
-    ├── src/main.rs:10 - Implement error handling
-    └── src/lib.rs:42 - Add documentation
-
-Found 6 TODO items in 3 files (15 files scanned)
-  TODO: 2, FIXME: 1, NOTE: 1, BUG: 1, HACK: 1
-```
-
-### Example 3: JSON Output
-
-```bash
-$ tt scan --json
-
-{
-  "files": [
-    {
-      "path": "src/main.rs",
-      "items": [
-        {
-          "tag": "TODO",
-          "message": "Implement error handling",
-          "line": 10,
-          "column": 5,
-          "priority": "Medium"
-        }
-      ]
-    }
-  ],
-  "summary": {
-    "total_count": 6,
-    "files_with_todos": 3,
-    "files_scanned": 15,
-    "tag_counts": {
-      "TODO": 2,
-      "FIXME": 1,
-      "NOTE": 1,
-      "BUG": 1,
-      "HACK": 1
-    }
-  }
-}
-```
-
-### Example 4: Filter by Tag
-
-```bash
-$ tt list --filter BUG
-
-src/lib.rs:78:5 [BUG] Memory leak in this function
-src/database.rs:142:3 [BUG] Connection not closed properly
-
-Found 2 TODO items in 2 files (15 files scanned)
-  BUG: 2
-```
-
-### Example 5: Include/Exclude Patterns
-
-```bash
-# Only scan Rust files
-tt scan --include "*.rs"
-
-# Exclude test files
-tt scan --exclude "*_test.rs,tests/**"
-
-# Combine patterns
-tt scan --include "*.rs,*.py" --exclude "target/**,__pycache__/**"
-```
-
-### Example 6: Statistics
-
-```bash
-$ tt stats
-
-TODO Statistics
-
-  Total items:        42
-  Files with TODOs:   12
-  Files scanned:      156
-  Avg items per file: 3.50
-
-By Tag:
-  TODO       18 ( 42.9%) ████████░░░░░░░░░░░░
-  FIXME      10 ( 23.8%) █
-████░░░░░░░░░░░░░░░
-  BUG         6 ( 14.3%) ███░░░░░░░░░░░░░░░░░
-  NOTE        5 ( 11.9%) ██░░░░░░░░░░░░░░░░░░
-  HACK        3 (  7.1%) █░░░░░░░░░░░░░░░░░░░
-```
-
 ## Supported Comment Styles
 
 The tool recognizes TODO-style tags in various comment formats:
@@ -345,10 +193,10 @@ Tags are assigned priority levels for sorting and coloring:
 
 | Priority | Tags | Color |
 |----------|------|-------|
-| Critical | BUG, FIXME, XXX | Red |
-| High | HACK, WARN, WARNING | Yellow |
-| Medium | TODO, PERF | Cyan |
-| Low | NOTE, INFO, IDEA | Green |
+| Critical | BUG, FIXME, ERROR | Red |
+| High | HACK, WARN, WARNING, FIX | Yellow |
+| Medium | TODO, WIP, MAYBE | Cyan |
+| Low | NOTE, XXX, INFO, DOCS, PERF, TEST, IDEA | Green |
 
 ## Terminal Support
 
@@ -368,34 +216,46 @@ The tool generates clickable hyperlinks (OSC 8) in supported terminals:
 
 Colors are automatically enabled when outputting to a terminal. Use `--no-color` or set the `NO_COLOR` environment variable to disable.
 
-## Development
+## Extensions
 
-### Building
+### GitHub Action
 
-```bash
-cargo build --release
+The [todo-tree-action](https://github.com/alexandretrotel/todo-tree-action) automatically scans your pull requests for TODO comments and posts a summary as a PR comment.
+
+```yaml
+# .github/workflows/todo-tree.yml
+name: Todo Tree
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan-todos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: alexandretrotel/todo-tree-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-only: true  # Only scan files changed in the PR
+          new-only: true      # Only show NEW TODOs (not in base branch)
 ```
 
-### Running Tests
+See the [todo-tree-action repository](https://github.com/alexandretrotel/todo-tree-action) for full documentation and configuration options.
 
-```bash
-cargo test
-```
+### Zed Editor
 
-### Project Structure
+The [zed-todo-tree](https://github.com/alexandretrotel/zed-todo-tree) extension integrates TODO scanning directly into Zed Assistant using slash commands.
 
-```
-src/
-├── lib.rs       # Library entry point with command implementations
-├── main.rs      # Binary entry point (todo-tree)
-├── bin/
-│   └── tt.rs    # Binary entry point (tt alias)
-├── cli.rs       # Command-line argument parsing (clap)
-├── config.rs    # Configuration file handling
-├── parser.rs    # Regex-based tag detection
-├── printer.rs   # Output formatting (tree, flat, JSON)
-└── scanner.rs   # Directory traversal (ignore crate)
-```
+See the [zed-todo-tree repository](https://github.com/alexandretrotel/zed-todo-tree) for installation instructions, usage details, and required capabilities.
 
 ## Contributing
 
