@@ -44,7 +44,7 @@
 
     in {
       # Development shells
-      devShells = forEachSupportedSystem ({ pkgs }: {
+      devShells = forEachSupportedSystem ({ pkgs, system }: {
         default = pkgs.mkShell {
           env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
           packages = with pkgs; [
