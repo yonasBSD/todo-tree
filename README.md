@@ -47,36 +47,26 @@ tt scan ~/projects/todo-tree --tags FIXME
 ```nix
 # flake.nix
 {
-  description = "Your custom multi-machine system flake.";
-
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     todo-tree.url = "github:alexandretrotel/todo-tree";
   };
 
-  outputs = { self, nixpkgs, todo-tree, ... }:
-    let
-      systems = ["x86_64-linux"]; # list all your systems
-    in
-    {
-      nixosConfigurations = {
-        my-host = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          modules = [
-            ./configuration.nix
-          ];
-          specialArgs = { inherit todo-tree; };
-        };
-      };
+  outputs = { self, nixpkgs, todo-tree, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [ ./configuration.nix ];
+      specialArgs = { inherit todo-tree; };
     };
+  };
 }
 
 # configuration.nix
-{ config, pkgs, todo-tree, ... }:
+{ pkgs, todo-tree, ... }:
 
 {
-  environment.systemPackages = with pkgs; [
-    todo-tree.packages.${builtins.currentSystem}.todo-tree
+  environment.systemPackages = [
+    todo-tree.packages.${pkgs.system}.todo-tree
   ];
 }
 ```
