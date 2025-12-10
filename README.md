@@ -23,6 +23,54 @@ A command-line tool to find and display TODO-style comments in your codebase, si
 cargo install todo-tree
 ```
 
+### NixOS (Flakes)
+
+#### Try before you install
+
+```bash
+# runs the default todo-tree command
+nix run github:alexandretrotel/todo-tree
+
+# create a shell with the command available (with nix-output-monitor)
+nom shell github:alexandretrotel/todo-tree
+tt tags
+
+# or, just normal nix
+nix shell github:alexandretrotel/todo-tree
+tt scan ~/projects/todo-tree --tags FIXME
+```
+
+**Note:** If you haven't enabled the experimental Nix command and flakes features, you need to pass `--extra-experimental-features "nix-command flakes"` to the command. See the [Nix command wiki](https://nixos.wiki/wiki/Nix_command) for more details.
+
+#### Install for your system
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    todo-tree.url = "github:alexandretrotel/todo-tree";
+  };
+
+  outputs = { self, nixpkgs, todo-tree, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [ ./configuration.nix ];
+      specialArgs = { inherit todo-tree; };
+    };
+  };
+}
+
+# configuration.nix
+{ pkgs, todo-tree, ... }:
+
+{
+  environment.systemPackages = [
+    todo-tree.packages.${pkgs.stdenv.hostPlatform.system}.todo-tree
+  ];
+}
+```
+
 ### From Source
 
 ```bash
