@@ -21,10 +21,19 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          # Get the tag from the GitHub event JSON
-          TAG_NAME=$(jq -r .release.tag_name "$GITHUB_EVENT_PATH")
-          # Strip 'todo-tree-v' prefix
-          VERSION="${TAG_NAME#todo-tree-v}"
+          # Default to empty
+          VERSION=""
+
+          # Check if this is a release event
+          if [ -f "$GITHUB_EVENT_PATH" ] && jq -e .release "$GITHUB_EVENT_PATH" >/dev/null; then
+            # Extract tag from release
+            TAG_NAME=$(jq -r .release.tag_name "$GITHUB_EVENT_PATH")
+            VERSION="${TAG_NAME#todo-tree-v}"
+          else
+            # Fallback to workflow_dispatch input
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download release assets and compute SHA256
