@@ -30,32 +30,37 @@
           f { pkgs = import nixpkgs { inherit overlays system; }; system = system; }
         );
 
+      # Patch Cargo.toml content at evaluation time
+      originalCargoToml = builtins.readFile ./Cargo.toml;
+      patchedCargoToml = builtins.replaceStrings
+        [ ''members = ["core", "cli", "extensions/zed"]'' ]
+        [ ''members = ["core", "cli"]'' ]
+        originalCargoToml;
+
       # Define the todo-tree package
       todoTreePackages = forEachSupportedSystem ({ pkgs, system }: let
         naersklib = pkgs.callPackage naersk {};
 
         # Filter source to exclude the zed extension (since it's a git submodule)
-        src = pkgs.lib.cleanSourceWith {
+        filteredSrc = pkgs.lib.cleanSourceWith {
           src = self;
           filter = path: type:
             !(pkgs.lib.hasInfix "extensions/zed" path);
         };
 
-        # Create a modified Cargo.toml that excludes zed from workspace members
-        patchedSrc = pkgs.runCommand "todo-tree-src" {} ''
-          cp -r ${src} $out
-          chmod -R u+w $out
-          sed -i 's|members = \["core", "cli", "extensions/zed"\]|members = ["core", "cli"]|' $out/Cargo.toml
-        '';
-
+        # Use naersk's postUnpack to patch Cargo.toml
         package = naersklib.buildPackage {
           pname = "todo-tree";
           # Read version from cli/Cargo.toml since root is a workspace manifest
           version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
-          src = patchedSrc;
-          # Build only the cli package from the workspace
+          src = filteredSrc;
           cargoBuildOptions = opts: opts ++ [ "--package" "todo-tree" ];
           nativeBuildInputs = with pkgs; [ pkg-config ];
+          postUnpack = ''
+            cat > $sourceRoot/Cargo.toml << 'EOF'
+${patchedCargoToml}
+EOF
+          '';
           meta = { mainProgram = "todo-tree"; };
         };
       in { todo-tree = package; default = package; });
