@@ -1,0 +1,28 @@
+name: Todo Tree Action Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  todo-tree-action:
+    name: Todo Tree Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Todo Tree Action
+        uses: ./todo-tree-action
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-only: true
+          show-annotations: true
+          post-comment: true
+          comment-header: "## TODO Report"
