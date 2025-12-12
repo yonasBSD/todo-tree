@@ -63,6 +63,7 @@
 
       # Use naersk's postUnpack to patch Cargo.toml
       package = naersklib.buildPackage {
+        name = "todo-tree";
         pname = "todo-tree";
         # Read version from cli/Cargo.toml since root is a workspace manifest
         version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
