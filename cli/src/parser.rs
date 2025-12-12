@@ -46,14 +46,27 @@ impl TodoParser {
         // Escape special regex characters in tags
         let escaped_tags: Vec<String> = tags.iter().map(|t| regex::escape(t)).collect();
 
-        // Build pattern that matches:
-        // - Optional comment prefix (// # /* <!-- -- ; etc.)
-        // - Tag (with Unicode-aware word boundary to avoid matching inside words)
-        // - Optional author in parentheses
-        // - Optional colon
-        // - Message
+        // Build pattern that matches TODO-style tags in comments.
+        //
+        // The pattern supports two forms:
+        // 1. With comment prefix: `// TODO: message` or `# TODO message`
+        // 2. With colon (no prefix required): `TODO: message` (must have colon)
+        //
+        // This prevents false positives from:
+        // - Markdown headings: "# Error Handling" (has # but no colon after tag, and
+        //   text continues after "Error" without the tag being directly after #)
+        // - Prose text: "Use error classes" (no comment marker, no colon after "error")
+        // - Code: "throw new Error(...)" (no comment marker, no colon pattern)
+        //
+        // The key rules:
+        // - If a comment prefix (// # /* <!-- etc.) is present AND tag follows it
+        //   directly, match with or without colon
+        // - If no comment prefix, require a colon after the tag
+        // - Tag must be at a word boundary (not inside another word)
+        //
+        // Comment prefixes: // # /* <!-- -- ; % @ *
         let pattern = format!(
-            r"(?:^|[^\p{{L}}\p{{N}}_])({tags})(?:\(([^)]+)\))?[:\s]+(.*)$",
+            r"(?:(?:^|[^\p{{L}}\p{{N}}])(?://+|/\*+|\*|<!-+|-{{2,}}|;+|%+|@)\s*({tags})(?:\(([^)]+)\))?[:\s]+(.*)$)|(?:(?:^|[^\p{{L}}\p{{N}}_])({tags})(?:\(([^)]+)\))?:\s*(.*)$)",
             tags = escaped_tags.join("|")
         );
 
@@ -72,15 +85,34 @@ impl TodoParser {
 
         // Try to match the pattern
         if let Some(captures) = pattern.captures(line) {
-            let tag_match = captures.get(1)?;
+            // The pattern has two alternatives:
+            // - Groups 1-3: match with comment prefix (// /* * <!-- -- ; % @)
+            // - Groups 4-6: match with colon requirement (no prefix needed)
+            let (tag_match, author, message) = if let Some(tag_m) = captures.get(1) {
+                // First alternative matched (with comment prefix)
+                (
+                    tag_m,
+                    captures.get(2).map(|m| m.as_str().to_string()),
+                    captures
+                        .get(3)
+                        .map(|m| m.as_str().trim().to_string())
+                        .unwrap_or_default(),
+                )
+            } else if let Some(tag_m) = captures.get(4) {
+                // Second alternative matched (colon required, no prefix)
+                (
+                    tag_m,
+                    captures.get(5).map(|m| m.as_str().to_string()),
+                    captures
+                        .get(6)
+                        .map(|m| m.as_str().trim().to_string())
+                        .unwrap_or_default(),
+                )
+            } else {
+                return None;
+            };
+
             let tag = tag_match.as_str().to_string();
-
-            let author = captures.get(2).map(|m| m.as_str().to_string());
-
-            let message = captures
-                .get(3)
-                .map(|m| m.as_str().trim().to_string())
-                .unwrap_or_default();
 
             // Calculate column (1-indexed)
             let column = tag_match.start() + 1;
@@ -518,5 +550,153 @@ Para todos vocês
         );
         assert_eq!(items[0].tag, "TODO");
         assert_eq!(items[1].tag, "FIXME");
+    }
+
+    fn tags_with_error() -> Vec<String> {
+        vec![
+            "TODO".to_string(),
+            "FIXME".to_string(),
+            "BUG".to_string(),
+            "NOTE".to_string(),
+            "HACK".to_string(),
+            "ERROR".to_string(),
+        ]
+    }
+
+    #[test]
+    fn test_no_match_error_in_markdown_heading() {
+        // Markdown headings like "# Error Handling" should NOT match
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let result = parser.parse_line("# Error Handling", 1);
+        assert!(
+            result.is_none(),
+            "Should not match 'Error' in markdown heading '# Error Handling'"
+        );
+
+        let result2 = parser.parse_line("## Error Classes", 1);
+        assert!(
+            result2.is_none(),
+            "Should not match 'Error' in markdown heading '## Error Classes'"
+        );
+
+        let result3 = parser.parse_line("### Custom Error Types", 1);
+        assert!(
+            result3.is_none(),
+            "Should not match 'Error' in markdown heading"
+        );
+    }
+
+    #[test]
+    fn test_no_match_error_in_markdown_prose() {
+        // Prose containing "error" should NOT match
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let result = parser.parse_line("Use error classes for granular error handling", 1);
+        assert!(result.is_none(), "Should not match 'error' in prose text");
+
+        let result2 = parser.parse_line("The error message with status info", 1);
+        assert!(
+            result2.is_none(),
+            "Should not match 'error' in prose describing error messages"
+        );
+    }
+
+    #[test]
+    fn test_no_match_error_in_code_block_content() {
+        // Code examples showing error usage should NOT match
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let result = parser.parse_line("throw new Error('Something went wrong')", 1);
+        assert!(result.is_none(), "Should not match 'Error' in code example");
+
+        let result2 = parser.parse_line("catch (error) {", 1);
+        assert!(
+            result2.is_none(),
+            "Should not match 'error' in catch statement"
+        );
+    }
+
+    #[test]
+    fn test_match_real_error_comment() {
+        // Real ERROR comments should still match
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let result = parser.parse_line("// ERROR: This needs to be fixed", 1);
+        assert!(result.is_some(), "Should match real ERROR comment");
+        assert_eq!(result.unwrap().tag, "ERROR");
+
+        let result2 = parser.parse_line("# ERROR: Handle this case", 1);
+        assert!(result2.is_some(), "Should match ERROR with # comment");
+        assert_eq!(result2.unwrap().tag, "ERROR");
+
+        let result3 = parser.parse_line("/* ERROR: Critical issue */", 1);
+        assert!(result3.is_some(), "Should match ERROR in block comment");
+        assert_eq!(result3.unwrap().tag, "ERROR");
+    }
+
+    #[test]
+    fn test_markdown_docs_false_positives_comprehensive() {
+        // Comprehensive test based on the user's reported false positives
+        // from apps/docs/src/packages/fetch/errors.md
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let content = r#"
+# Error Handling
+
+Use error classes for granular error handling.
+
+## Error Classes
+
+The following error classes are available:
+
+- `FetchError`: Base error class
+- `NetworkError`: Network-related errors
+- `TimeoutError`: Request timeout errors
+
+### Custom Error Types
+
+You can create custom error types by extending the base class.
+
+The error message with status info helps debugging.
+
+```typescript
+class CustomError extends FetchError {
+  constructor(message: string) {
+    super(message);
+  }
+}
+```
+"#;
+        let items = parser.parse_content(content);
+        assert_eq!(
+            items.len(),
+            0,
+            "Should not find any false positive ERRORs in markdown documentation"
+        );
+    }
+
+    #[test]
+    fn test_real_error_comments_in_markdown() {
+        // Real ERROR comments embedded in markdown should still be detected
+        let parser = TodoParser::new(&tags_with_error(), false);
+
+        let content = r#"
+# Error Handling
+
+<!-- ERROR: This section needs review -->
+
+Some documentation text.
+
+<!-- TODO: Add more examples -->
+"#;
+        let items = parser.parse_content(content);
+        assert_eq!(
+            items.len(),
+            2,
+            "Should find ERROR and TODO in HTML comments"
+        );
+        assert!(items.iter().any(|i| i.tag == "ERROR"));
+        assert!(items.iter().any(|i| i.tag == "TODO"));
     }
 }
