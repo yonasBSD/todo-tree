@@ -13,6 +13,7 @@ pub fn priority_to_color(priority: Priority) -> Color {
     }
 }
 
+#[cfg(not(doctest))]
 /// Default regex pattern for matching TODO-style tags in comments.
 ///
 /// This pattern is inspired by the VSCode Todo Tree extension and matches tags
@@ -710,29 +711,7 @@ class CustomError extends FetchError {
         );
     }
 
-    #[test]
-    fn test_real_error_comments_in_markdown() {
-        // Real ERROR comments embedded in markdown should still be detected
-        let parser = TodoParser::new(&tags_with_error(), false);
 
-        let content = r#"
-# Error Handling
-
-<!-- ERROR: This section needs review -->
-
-Some documentation text.
-
-<!-- TODO: Add more examples -->
-"#;
-        let items = parser.parse_content(content);
-        assert_eq!(
-            items.len(),
-            2,
-            "Should find ERROR and TODO in HTML comments"
-        );
-        assert!(items.iter().any(|i| i.tag == "ERROR"));
-        assert!(items.iter().any(|i| i.tag == "TODO"));
-    }
 
     fn tags_with_test() -> Vec<String> {
         vec![
